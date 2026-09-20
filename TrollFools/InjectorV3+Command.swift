@@ -260,7 +260,12 @@ extension InjectorV3 {
     fileprivate static let ctBypassBinaryURL = findExecutable("ct_bypass")
 
     func cmdCoreTrustBypass(_ target: URL, teamID: String) throws {
-        try cmdPseudoSign(target)
+        // FIX: The target's LC_CODE_SIGNATURE is always present but possibly stale
+        // after insert_dylib/install_name_tool modifications (--no-strip-codesig keeps
+        // the load command while content changes). Always force a fresh ldid signature
+        // before ct_bypass, otherwise dyld rejects the binary with
+        // "code signature invalid" at launch.
+        try cmdPseudoSign(target, force: true)
         let retCode = try Execute.rootSpawn(binary: Self.ctBypassBinaryURL.path, arguments: [
             "-r", "-i", target.path, "-t", teamID,
         ], ddlog: logger)
